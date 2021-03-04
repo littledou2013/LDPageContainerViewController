@@ -31,7 +31,7 @@ public protocol LDPageContainerViewControllerDelegate: class {
 }
 
 // MARK: LDPageContainerViewController代理默认实现
-extension LDPageContainerViewControllerDelegate {
+public extension LDPageContainerViewControllerDelegate {
     func containerViewController(_ containerViewController: LDPageContainerViewController, willBeginPagingAt page: (index: Int, viewController: UIViewController)) {
         
     }
