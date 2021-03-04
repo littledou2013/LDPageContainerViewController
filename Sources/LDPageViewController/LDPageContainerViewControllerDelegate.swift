@@ -10,7 +10,7 @@ import UIKit
 
 
 // MARK: LDPageContainerViewController代理
-protocol LDPageContainerViewControllerDelegate: class {
+public protocol LDPageContainerViewControllerDelegate: class {
     // 开始出现在界面上
     func containerViewController(_ containerViewController: LDPageContainerViewController, willBeginPagingAt page: (index: Int, viewController: UIViewController))
     

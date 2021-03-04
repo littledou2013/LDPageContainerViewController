@@ -8,7 +8,7 @@
 import UIKit
 
 // MARK: LDPageContainerViewController数据协议
-protocol LDPageContainerViewControllerDataSource: class {
+public protocol LDPageContainerViewControllerDataSource: class {
     func numberOfViewControllers(in containerViewController: LDPageContainerViewController) -> NSInteger
     func viewController(at index: NSInteger, for containerViewController: LDPageContainerViewController) -> UIViewController
 }

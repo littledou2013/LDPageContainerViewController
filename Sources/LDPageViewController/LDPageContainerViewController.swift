@@ -9,18 +9,18 @@ import UIKit
 
 public class LDPageContainerViewController: UIViewController, UIScrollViewDelegate {
     
-    weak var dataSource: LDPageContainerViewControllerDataSource?
+    public weak var dataSource: LDPageContainerViewControllerDataSource?
     
-    weak var delegate: LDPageContainerViewControllerDelegate?
+    public weak var delegate: LDPageContainerViewControllerDelegate?
     
-    weak var prefetchDataSource: LDPageContainerViewControllerPrefetching?
+    public weak var prefetchDataSource: LDPageContainerViewControllerPrefetching?
     
     /**
      滑动方向：支持横向和纵向
      .horizontal：横向滑动
      .vertical：纵向滑动
      */
-    enum LDPageScrollDirection {
+    public enum LDPageScrollDirection {
         case horizontal
         case vertical
     }
@@ -28,12 +28,12 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
     /**
      滑动方向，默认是横向滑动
      */
-    var pageScrollDirection: LDPageScrollDirection = .horizontal
+    public var pageScrollDirection: LDPageScrollDirection = .horizontal
     
     /**
      先开放，后期需要继续封装
      */
-    let scrollView: UIScrollView = {
+    public let scrollView: UIScrollView = {
         var scrollView = UIScrollView.init(frame: CGRect.zero)
         scrollView.isPagingEnabled = true
         scrollView.bounces = true
@@ -43,7 +43,7 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
         return scrollView
     }()
     
-    var isScrollEnabled: Bool {
+    public var isScrollEnabled: Bool {
         get {
             scrollView.isScrollEnabled
         }
@@ -52,7 +52,7 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
         }
     }
     
-    var bounces: Bool {
+    public var bounces: Bool {
         get {
             scrollView.bounces
         }
@@ -74,7 +74,7 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
      pagePercent: 属性pagePercent的值, 当前偏移量的比例，取值为 [0, numbers - 1]。
      */
     
-    var current: (isTransitioning: Bool, index: Int, majorViewController: UIViewController,  minorViewController: UIViewController?, pagePercent: CGFloat)? {
+    public var current: (isTransitioning: Bool, index: Int, majorViewController: UIViewController,  minorViewController: UIViewController?, pagePercent: CGFloat)? {
         if let majorChid = majorPage {
             return (self.isTransitioning, majorChid.index, majorChid.viewController, minorPage?.viewController, pagePercent)
         } else {
@@ -219,7 +219,7 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
         }
     }
     
-    func updateContentSizeOfScrollView() {
+    private func updateContentSizeOfScrollView() {
         let pageWidth = scrollView.bounds.size.width
         let pageHeight = scrollView.bounds.size.height
         let numbers = numbersOfViewControllers
@@ -231,7 +231,7 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
         }
     }
     
-    func updateContentOffsetOfScrollView() {
+    private func updateContentOffsetOfScrollView() {
         switch pageScrollDirection {
         case .horizontal:
             var contentOffsetX = round(pagePercent) * scrollView.bounds.size.width
@@ -378,7 +378,7 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
         case big
         case small
     }
-    var prefetchPageNumber: Int = 1 {
+    public var prefetchPageNumber: Int = 1 {
         didSet {
             prefetchVisibleRange = nil
         }
@@ -442,7 +442,7 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
      @param bundle nib对应的bundle
      @param identifier 对应的重用标识
      */
-    func register(classType: AnyClass, nibName: String, bundle: Bundle?, for reuseIdentifier: String) {
+    public func register(classType: AnyClass, nibName: String, bundle: Bundle?, for reuseIdentifier: String) {
         reuseIdentifiers[reuseIdentifier] = ["classType":classType,"nibName": nibName, "bundle": bundle ?? NSNull.init()]
     }
     
@@ -452,7 +452,7 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
      @param class 对应的Class
      @param identifier 对应的重用标识
      */
-    func register(classType: AnyClass, for reuseIdentifier: String) {
+    public func register(classType: AnyClass, for reuseIdentifier: String) {
         reuseIdentifiers[reuseIdentifier] = classType
     }
     
@@ -462,7 +462,7 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
      @param identifier 对应的identifier
      @return 重用的控制器，如果对应的identifier未被注册，则返回 nil；如果不存在对应可重用的控制器，则会自动创建一个控制器并返回。
      */
-    func dequeueReusableViewController(with identifier: String) -> UIViewController {
+    public func dequeueReusableViewController(with identifier: String) -> UIViewController {
         guard let identifierClass = reuseIdentifiers[identifier] else {
             fatalError("\(identifier) not Registered for \(self)")
         }
@@ -520,7 +520,7 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
     /**
      重新加载所有子视图控制器数据，并定位到0
      */
-    func reloadData(completion: ((_ finshed: Bool) -> Void)? = nil) {
+    public func reloadData(completion: ((_ finshed: Bool) -> Void)? = nil) {
         reloadData(to: 0, completion: completion)
     }
 
@@ -528,7 +528,7 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
      重新加载所有子视图控制器数据，并且切换到 index 所在的页面
      @param index 目标索引, 如果index不合法（合法：index >== 0 && index < 页数)，则不做任何事
      */
-    func reloadData(to index: Int, completion: ((_ finshed: Bool) -> Void)? = nil) {
+    public func reloadData(to index: Int, completion: ((_ finshed: Bool) -> Void)? = nil) {
         let numbers = dataSource?.numberOfViewControllers(in: self) ?? 0
         guard index >= 0, index < numbers else {
             if let completion = completion {
@@ -545,7 +545,7 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
         scroll(to: index, animated: false, completion: completion)
     }
     
-    func scroll(to index: Int, animated: Bool, completion: ((_ finshed: Bool) -> Void)? = nil) {
+    public func scroll(to index: Int, animated: Bool, completion: ((_ finshed: Bool) -> Void)? = nil) {
         guard index >= 0, index < numbersOfViewControllers else {
             print("index不和规范")
             if let completion = completion {
@@ -713,7 +713,7 @@ extension LDPageContainerViewController {
      当前偏移量占总偏移量的比例，取值为 [0,1]。
      算法 contentOffsetX / (totalContentSizeWidth - singlePageWidth)
      */
-    func corvertInTotal(from pagePercent:CGFloat) -> CGFloat? {
+    public func corvertInTotal(from pagePercent:CGFloat) -> CGFloat? {
         switch pageScrollDirection {
         case .horizontal:
             let bottomFactor = scrollView.contentSize.width  - scrollView.bounds.size.width

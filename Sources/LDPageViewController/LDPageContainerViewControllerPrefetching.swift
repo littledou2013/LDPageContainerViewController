@@ -7,7 +7,7 @@
 
 import UIKit
 
-protocol LDPageContainerViewControllerPrefetching: class {
+public protocol LDPageContainerViewControllerPrefetching: class {
     func containerViewController(_ containerViewController: LDPageContainerViewController, prefetchIndexes indexes: Set<Int>, cancelPrefechIndexes cancelIndexes: Set<Int>)
 }
 
