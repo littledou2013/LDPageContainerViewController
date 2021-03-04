@@ -7,7 +7,7 @@
 
 import UIKit
 
-class LDPageContainerViewController: UIViewController, UIScrollViewDelegate {
+public class LDPageContainerViewController: UIViewController, UIScrollViewDelegate {
     
     weak var dataSource: LDPageContainerViewControllerDataSource?
     
