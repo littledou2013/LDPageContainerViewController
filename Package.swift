@@ -20,7 +20,13 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .target(
             name: "LDPageViewController",
-            dependencies: []),
+            dependencies: [],
+            path: "Sources",
+            sources: ["LDPageViewController"],
+            cSettings: [
+                .headerSearchPath("LDPageViewController")
+            ]
+        ),
         .testTarget(
             name: "LDPageViewControllerTests",
             dependencies: ["LDPageViewController"]),
