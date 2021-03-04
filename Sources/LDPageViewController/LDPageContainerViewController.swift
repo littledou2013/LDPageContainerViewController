@@ -132,7 +132,7 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
     private var isContentSetting: Bool = false
     
     // MARK: 生命周期
-    override func viewDidLoad() {
+    public override func viewDidLoad() {
         super.viewDidLoad()
         scrollView.delegate = self
         if #available(iOS 11.0, *) {
@@ -144,7 +144,7 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
         view.addSubview(scrollView)
     }
     
-    override func viewWillAppear(_ animated: Bool) {
+    public override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         ld_AppearStatus = .willAppear
         updateSubViewControllerAppearStatus(animated)
@@ -152,19 +152,19 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
         layoutPageContainer()
     }
     
-    override func viewDidAppear(_ animated: Bool) {
+    public override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         ld_AppearStatus = .didAppear
         updateSubViewControllerAppearStatus(animated)
     }
     
-    override func viewWillDisappear(_ animated: Bool) {
+    public override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         ld_AppearStatus = .willDisappear
         updateSubViewControllerAppearStatus(animated)
     }
     
-    override func viewDidDisappear(_ animated: Bool) {
+    public override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         ld_AppearStatus = .didDisappear
         updateSubViewControllerAppearStatus(animated)
@@ -206,7 +206,7 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
     }
     
     // MARK: 布局
-    override func viewWillLayoutSubviews() {
+    public override func viewWillLayoutSubviews() {
         super.viewWillLayoutSubviews()
         if view.bounds == scrollView.frame {
             return
@@ -625,11 +625,11 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
     }
     
     // MARK: UIScrollViewDelegate
-    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+    public func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
         delegate?.containerViewControllerWillBeginDragging(self)
     }
     
-    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+    public func scrollViewDidScroll(_ scrollView: UIScrollView) {
         switch setContentOffsetStatus {
         case .isSetting(let contentOffset): //   // 外界设置contentOffset的时候，第一次调用的scrollView的contentOffset是对的
             if scrollView.isTracking {
@@ -647,17 +647,17 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
         layoutPageContainer()
     }
     
-    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+    public func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
         self.didEndTransition(fromDragging: true)
     }
     
-    func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+    public func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
         if !decelerate {
             self.didEndTransition(fromDragging: true)
         }
     }
     
-    func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
+    public func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
         if let animationBlock = animationCompletionBlock {
             animationCompletionBlock = nil
             animationBlock(true)
@@ -684,12 +684,12 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
     }
         
     // MARK: 子viewController生命周期的管理
-    override var shouldAutomaticallyForwardAppearanceMethods: Bool {
+    public override var shouldAutomaticallyForwardAppearanceMethods: Bool {
         return false
     }
     
     // MARK: 内存释放
-    override func didReceiveMemoryWarning() {
+    public override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         reusableViewControllers.removeAll()
     }
