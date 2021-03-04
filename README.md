@@ -1,3 +1,24 @@
 # LDPageViewController
 
-A description of this package.
+LDPageContainerViewController，模仿UIPageViewController实现的容器视图控制器
+1）支持子viewController生命周期的完整性和明确性
+2）支持在手势引发的滑动过程中代码非动画定位的其他页面
+3）支持没有手势触摸的时候代码动画定位到其他页面
+4）支持代码动画定位的其他页面时手势触摸停止动画
+5）支持获取当前页面位置等信息
+6）支持LDPageContainerViewController的rootView大小改变的时候，子控制器UI自适应
+7）支持UI旋转的时候，子控制器UI自适应
+8）支持设置contentInset，与MJRefresh是兼容的（这里需要把scrollView给开放，会有安全隐患，要考虑怎么更好的支持）
+9）LDPageContainerViewController子控制器具有复用功能，类似UITableViewCell
+10）内存释放
+11)  数据预取策略
+
+还未做，但需要支持的：
+12）支持OC和Swift调用
+13）支持组件集成：pod、Swift Package、Cathage
+14）调试方便
+
+明确不会做：
+1）不支持在手势引发的滑动过程中代码动画定位的其他页面，除非牺牲其他体验，否则是做不到的。
+2）contentSize是实际所有页面大小，不能做到只有三个页面，UIPageViewController的contentSize是只有是三个页面的，但是由于UIPageViewController不会记录滑到第几个页面了，LDPageViewController需要知道滑到第几个页面，具体位置，实现起来会比较复杂，并且contentSize的大小官方文档并没有说会影响性能
+3）将scrollView作为UIPageViewController的rootView，尝试过，但是scrollView大小不能做到自适应，也不知道系统的rootView是怎么做到大小自适应的，所以没做
