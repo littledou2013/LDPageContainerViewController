@@ -4,6 +4,7 @@
 //
 //  Created by littledou on 2021/1/8.
 //
+// swiftlint:disable all
 
 import UIKit
 
@@ -74,9 +75,9 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
      pagePercent: 属性pagePercent的值, 当前偏移量的比例，取值为 [0, numbers - 1]。
      */
     
-    public var current: (isTransitioning: Bool, index: Int, majorViewController: UIViewController,  minorViewController: UIViewController?, pagePercent: CGFloat)? {
+    public var current: (isTransitioning: Bool, majorIndex: Int, majorViewController: UIViewController, minorIndex: Int?,  minorViewController: UIViewController?, pagePercent: CGFloat)? {
         if let majorChid = majorPage {
-            return (self.isTransitioning, majorChid.index, majorChid.viewController, minorPage?.viewController, pagePercent)
+            return (self.isTransitioning, majorChid.index, majorChid.viewController, minorPage?.index, minorPage?.viewController, pagePercent)
         } else {
             return nil
         }
@@ -129,7 +130,7 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
     /**
      在setContentOffset:animted调用前后设置，辅助参数
      */
-    private var isContentSetting: Bool = false
+    private var isContentOffsetSetting: Bool = false
     
     // MARK: 生命周期
     public override func viewDidLoad() {
@@ -251,11 +252,21 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
     }
 
     private func layoutPageContainer() {
+        print("littledou function")
+        print(#function)
+        print(scrollView)
+        print(idDisappearing)
+        print(scrollView.isDragging)
+        print(scrollView.isTracking)
+        print(scrollView.isDecelerating)
         guard isDisppeared == false else {
             return
         }
         let pageWidth = scrollView.bounds.size.width
         let pageHeight = scrollView.bounds.size.height
+        print(numbersOfViewControllers)
+        print(pageWidth)
+        print(pageHeight)
         guard numbersOfViewControllers > 0, pageWidth > 0, pageHeight > 0 else {
             return
         }
@@ -517,111 +528,390 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
      */
     private var animationCompletionBlock: ((_ finshed: Bool) -> Void)? = nil
     
-    /**
-     重新加载所有子视图控制器数据，并定位到0
-     */
-    public func reloadData(completion: ((_ finshed: Bool) -> Void)? = nil) {
-        reloadData(to: 0, completion: completion)
-    }
-
-    /**
-     重新加载所有子视图控制器数据，并且切换到 index 所在的页面
-     @param index 目标索引, 如果index不合法（合法：index >== 0 && index < 页数)，则不做任何事
-     */
-    public func reloadData(to index: Int, completion: ((_ finshed: Bool) -> Void)? = nil) {
-        let numbers = dataSource?.numberOfViewControllers(in: self) ?? 0
-        guard index >= 0, index < numbers else {
-            if let completion = completion {
-                print("页数不和规范")
-                completion(false)
+    
+    func insert(at indexes: [Int]) {
+        if isBatchUpating == false {
+            let oldNumbers = numbersOfViewControllers
+            let newNumbers = dataSource?.numberOfViewControllers(in: self) ?? 0
+            guard oldNumbers + indexes.count == newNumbers else {
+                fatalError("insert 数据不匹配")
             }
-            return
+            numbersOfViewControllers = newNumbers
+            var oldContentOffset = scrollView.contentOffset.x
+            var pageWidth = scrollView.bounds.size.width
+            if pageScrollDirection == .vertical {
+                oldContentOffset = scrollView.contentOffset.y
+                pageWidth = scrollView.bounds.size.height
+            }
+            for index in indexes {
+                if CGFloat(index) < oldContentOffset {
+                    oldContentOffset += pageWidth
+                }
+                if let majorIndex = majorPage?.index, index < majorIndex {
+                    majorPage?.index = majorIndex + 1
+                }
+                
+                if let minorIndex = minorPage?.index, index < minorIndex {
+                    minorPage?.index = minorIndex + 1
+                }
+            }
+            let contentOffset = (pageScrollDirection == .vertical) ? CGPoint.init(x: 0, y: oldContentOffset) : CGPoint.init(x: oldContentOffset, y: 0)
+            setContentOffsetStatus = .isSetting(contentOffset)
+            isContentOffsetSetting = true
+            scrollView.setContentOffset(contentOffset, animated: false)
+            isContentOffsetSetting = false
+            layoutPageContainer()
+            didEndTransition()
+        } else {
+            for index in indexes {
+                if CGFloat(index) < batchUpdatingStatus.contentOffset {
+                    batchUpdatingStatus.contentOffset += batchUpdatingStatus.pageWidth
+                }
+                if let majorIndex = batchUpdatingStatus.majorIndex, index < majorIndex {
+                    batchUpdatingStatus.majorIndex = majorIndex + 1
+                }
+                
+                if let minorIndex = batchUpdatingStatus.minorIndex, index < minorIndex {
+                    batchUpdatingStatus.minorIndex = minorIndex + 1
+                }
+            }
+            batchUpdatingStatus.numbers += indexes.count
         }
-        removeViewController(majorPage)
-        removeViewController(minorPage)
-        numbersOfViewControllers = dataSource?.numberOfViewControllers(in: self) ?? 0
-        prefetchPages.removeAll()
-        updateContentSizeOfScrollView() // 这里可能会回调scrollViewDidScroll，会是一个坑，如果contentSize的大小小于contentOffset，就会导致scrollViewDidScroll
-        scroll(to: index, animated: false, completion: completion)
     }
     
-    public func scroll(to index: Int, animated: Bool, completion: ((_ finshed: Bool) -> Void)? = nil) {
-        guard index >= 0, index < numbersOfViewControllers else {
-            print("index不和规范")
-            if let completion = completion {
-                completion(false)
+    func delete(at indexes: [Int]) {
+        if isBatchUpating == false {
+            let oldNumbers = numbersOfViewControllers
+            let newNumbers = dataSource?.numberOfViewControllers(in: self) ?? 0
+            guard oldNumbers == newNumbers + indexes.count else {
+                fatalError("delete 数据不匹配")
             }
-            return
-        }
-        if let majorPage = majorPage, minorPage == nil, majorPage.index == index { // 刚好在当前页面，不做任何事情
-            prefetchPages(currentScrollDirection: .none, pagePercent: CGFloat(index))
-            if let completion = completion {
-                completion(true)
+            numbersOfViewControllers = newNumbers
+            var oldContentOffset = scrollView.contentOffset.x
+            var pageWidth = scrollView.bounds.size.width
+            if pageScrollDirection == .vertical {
+                oldContentOffset = scrollView.contentOffset.y
+                pageWidth = scrollView.bounds.size.height
             }
-            return
-        }
-        
-        if scrollView.isTracking, animated { // 在由手势引起的滑动过程中，不允许动态设置contentOffset
-            // 如果有动画，在触摸的同时调用该方法，触摸不动，会动画到指定的contentOffset，触摸重新动，contentOffset会回到触摸动之前的值
-            if let completion = completion {
-                completion(false)
+            for index in indexes {
+                if CGFloat(index) < oldContentOffset {
+                    oldContentOffset -= pageWidth
+                }
+                if let majorIndex = majorPage?.index {
+                    if index == majorIndex {
+                        majorPage = nil
+                    } else if index < majorIndex {
+                        majorPage?.index = majorIndex - 1
+                    }
+                }
+                
+                if let minorIndex = minorPage?.index, index < minorIndex {
+                    if index == minorIndex {
+                        minorPage = nil
+                    } else if index < minorIndex {
+                        minorPage?.index = minorIndex - 1
+                    }
+                }
             }
-            return
-        }
-        
-        var hasChanged = true
-        var contentOffset = scrollView.contentOffset
-        switch pageScrollDirection {
-        case .horizontal:
-            contentOffset.x = CGFloat(index) * scrollView.bounds.size.width
-            if contentOffset.x == scrollView.contentOffset.x {
-                hasChanged = false
-            }
-        case .vertical:
-            contentOffset.y = CGFloat(index) * scrollView.bounds.size.height
-            if contentOffset.y == scrollView.contentOffset.y {
-                hasChanged = false
-            }
-        }
-        
-        // 当contentOffset没有变化是不会调用didScroll或者didEndAnimation
-        if hasChanged == false {
-            prefetchPages(currentScrollDirection: .none, pagePercent: CGFloat(index))
-            if let completion = completion {
-                completion(true)
-            }
-            return
-        }
-        
-        if animated == false {
+            let contentOffset = (pageScrollDirection == .vertical) ? CGPoint.init(x: 0, y: oldContentOffset) : CGPoint.init(x: oldContentOffset, y: 0)
             setContentOffsetStatus = .isSetting(contentOffset)
+            isContentOffsetSetting = true
+            scrollView.setContentOffset(contentOffset, animated: false)
+            isContentOffsetSetting = false
+            layoutPageContainer()
+            didEndTransition()
+        } else {
+            for index in indexes {
+                if CGFloat(index) < batchUpdatingStatus.contentOffset {
+                    batchUpdatingStatus.contentOffset -= batchUpdatingStatus.pageWidth
+                }
+                if let majorIndex = batchUpdatingStatus.majorIndex, index < majorIndex {
+                    if index == majorIndex {
+                        batchUpdatingStatus.majorViewController = nil
+                        batchUpdatingStatus.majorIndex = nil
+                    } else if index < majorIndex {
+                        batchUpdatingStatus.majorIndex = majorIndex - 1
+                    }
+                }
+                
+                if let minorIndex = batchUpdatingStatus.minorIndex, index < minorIndex {
+                    if index == minorIndex {
+                        batchUpdatingStatus.minorViewController = nil
+                        batchUpdatingStatus.minorIndex = nil
+                    } else if index < minorIndex {
+                        batchUpdatingStatus.minorIndex = minorIndex - 1
+                    }
+                }
+            }
+            batchUpdatingStatus.numbers -= indexes.count
         }
-        isContentSetting = true
-        scrollView.setContentOffset(contentOffset, animated: animated)
-        isContentSetting = false
-        
-        if animated == false {
-            didEndTransition(fromDragging: false)
-            prefetchPages(currentScrollDirection: .none, pagePercent: CGFloat(index))
+    }
+    
+    func reload(at indexes: [Int]) {
+        if isBatchUpating == false {
+            for index in indexes {
+                if let majorIndex = majorPage?.index, index == majorIndex {
+                    majorPage = nil
+                }
+                
+                if let minorIndex = minorPage?.index, index == minorIndex {
+                    minorPage = nil
+                }
+            }
+            layoutPageContainer()
+            didEndTransition()
+        } else {
+            for index in indexes {
+                if let majorIndex = batchUpdatingStatus.majorIndex, index == majorIndex {
+                    batchUpdatingStatus.majorViewController = nil
+                    batchUpdatingStatus.majorIndex = nil
+                }
+                
+                if let minorIndex = batchUpdatingStatus.minorIndex, index == minorIndex {
+                    batchUpdatingStatus.minorViewController = nil
+                    batchUpdatingStatus.minorIndex = nil
+                }
+            }
+        }
+    }
+    
+    func move(at index: Int, to newIndex: Int) {
+        if isBatchUpating == false {
+            if let major = majorPage, major.index == index {
+                if let minor = minorPage, minor.index > major.index, minor.index < newIndex {
+                    minorPage?.index -= 1
+                }
+                majorPage?.index = newIndex
+            }
+            
+            if let minor = minorPage, minor.index == index {
+                if let major = majorPage, major.index > minor.index, major.index < newIndex {
+                    majorPage?.index -= 1
+                }
+                minorPage?.index = newIndex
+            }
+            layoutPageContainer()
+            didEndTransition()
+        } else {
+            if let majorIndex = batchUpdatingStatus.majorIndex, majorIndex == index {
+                if let minorIndex = batchUpdatingStatus.minorIndex, minorIndex > majorIndex, minorIndex < newIndex {
+                    batchUpdatingStatus.minorIndex = minorIndex - 1
+                }
+                batchUpdatingStatus.majorIndex = newIndex
+            }
+            
+            if let minorIndex = batchUpdatingStatus.minorIndex, minorIndex == index {
+                if let majorIndex = batchUpdatingStatus.majorIndex, majorIndex > minorIndex, majorIndex < newIndex {
+                    batchUpdatingStatus.majorIndex = majorIndex - 1
+                }
+                batchUpdatingStatus.minorIndex = newIndex
+            }
+        }
+    }
+    
+    private var isBatchUpating = false
+    private var batchUpdatingStatus:(majorViewController: UIViewController?, majorIndex: Int?, minorViewController: UIViewController?, minorIndex: Int?, contentOffset: CGFloat, pageWidth: CGFloat, numbers: Int) = (nil, nil, nil, nil, 0, 0, 0)
+    func perfor(batchUpdates:  (() -> Void)? = nil, completion: ((_ finshed: Bool) -> Void)? = nil) {
+        isBatchUpating = true
+        var contentOffsetV = scrollView.contentOffset.x
+        var pageWidth = scrollView.bounds.size.width
+        if pageScrollDirection == .vertical {
+            contentOffsetV = scrollView.contentOffset.y
+            pageWidth = scrollView.bounds.size.height
+        }
+        batchUpdatingStatus = (current?.majorViewController, current?.minorIndex, current?.minorViewController, current?.minorIndex, contentOffsetV, pageWidth, numbersOfViewControllers)
+        if let batchUpdates = batchUpdates {
+            batchUpdates()
+        }
+        let newNumbers = dataSource?.numberOfViewControllers(in: self) ?? 0
+        guard batchUpdatingStatus.numbers == newNumbers else {
+            fatalError("数据不匹配")
+        }
+        layoutPageContainer()
+        didEndTransition()
+        if let completion = completion {
+            completion(true)
+        }
+        let contentOffset = (pageScrollDirection == .vertical) ? CGPoint.init(x: 0, y: batchUpdatingStatus.contentOffset) : CGPoint.init(x: batchUpdatingStatus.contentOffset, y: 0)
+        setContentOffsetStatus = .isSetting(contentOffset)
+        isContentOffsetSetting = true
+        scrollView.setContentOffset(contentOffset, animated: false)
+        isContentOffsetSetting = false
+        layoutPageContainer()
+        didEndTransition()
+        isBatchUpating = false
+    }
+    
+    public func slientAppend(completion: ((_ finshed: Bool) -> Void)? = nil) {
+        let numbers = dataSource?.numberOfViewControllers(in: self) ?? 0
+        guard numbers > numbersOfViewControllers else {
+            print("slientAppend numberOfViewControllers应该更大")
             if let completion = completion {
-                completion(true)
+                completion(false)
+            }
+            return
+        }
+        numbersOfViewControllers = numbers
+        updateContentSizeOfScrollView()
+        
+    }
+    /**
+     重新加载所有子视图控制器数据，并且切换到 index 所在的页面
+     @param index 目标索引, 如果index不合法（合法：index >== 0 && index < 页数)，则不做任何事， index没传，则取当前contentOffset，如果contentOffset不合法（如大于新的numberOfViewControllers * width - width),也不做任何事
+     @param forceRefresh 是否强制刷新子页面
+     @param completion 完成后回调
+     */
+    public func reloadData() {
+        reloadData(to: 0, forceRefresh: true, completion: nil)
+    }
+    
+    public func reloadData(to index: Int?, forceRefresh: Bool = true, completion: ((_ finshed: Bool) -> Void)? = nil) {
+        print("littledou function")
+        print(#function)
+        print(index ?? "")
+        let numbers = dataSource?.numberOfViewControllers(in: self) ?? 0
+        guard numbers > 0 else {
+            print("reloadData numberOfViewControllers为0")
+            if let completion = completion {
+                completion(false)
+            }
+            return
+        }
+        if let index = index {
+            guard index >= 0, index < numbers else {
+                print("reloadData index不合规范")
+                if let completion = completion {
+                    completion(false)
+                }
+                return
             }
         } else {
-            animationCompletionBlock = {[weak self] finshed in
-                if let self = self  {
-                    if self.scrollView.contentOffset == contentOffset {
-                        self.didEndTransition(fromDragging: false)
-                        if let completion = completion {
-                            completion(finshed)
-                        }
-                    } else {
-                        if let completion = completion {
-                            completion(false)
+            let maxX = (CGFloat((numbers - 1)) * scrollView.bounds.size.width + scrollView.contentInset.left)
+            let maxY = (CGFloat((numbers - 1)) * scrollView.bounds.size.height + scrollView.contentInset.bottom)
+            guard scrollView.contentOffset.x <= maxX && scrollView.contentOffset.y <= maxY else {
+                print("reloadData contentOffset不合规范")
+                if let completion = completion {
+                    completion(false)
+                }
+                return
+            }
+        }
+        
+        if forceRefresh {
+            removeViewController(majorPage)
+            removeViewController(minorPage)
+            majorPage = nil
+            minorPage = nil
+        }
+        
+        numbersOfViewControllers = numbers
+        prefetchPages.removeAll()
+    
+        scrollView.contentSize = CGSize.init(width: CGFloat.greatestFiniteMagnitude, height:  CGFloat.greatestFiniteMagnitude) // 先放大，防止调整大小的时候调scrollViewDidScroll
+        // 这里可能会回调scrollViewDidScroll，会是一个坑，如果contentSize的大小小于contentOffset，就会导致scrollViewDidScroll
+        privateScroll(to: index, animated: false, completion: completion)
+        updateContentSizeOfScrollView()
+    }
+    
+    private func privateScroll(to index: Int?, animated: Bool = false, completion: ((_ finshed: Bool) -> Void)? = nil) {
+        if let index = index {
+            if let majorPage = majorPage, minorPage == nil, majorPage.index == index { // 刚好在当前页面，不做任何事情
+                prefetchPages(currentScrollDirection: .none, pagePercent: CGFloat(index))
+                if let completion = completion {
+                    completion(true)
+                }
+                return
+            }
+            
+            if scrollView.isTracking, animated { // 在由手势引起的滑动过程中，不允许动态设置contentOffset
+                // 如果有动画，在触摸的同时调用该方法，触摸不动，会动画到指定的contentOffset，触摸重新动，contentOffset会回到触摸动之前的值
+                if let completion = completion {
+                    completion(false)
+                }
+                return
+            }
+            
+            var hasChanged = true
+            var contentOffset = scrollView.contentOffset
+            switch pageScrollDirection {
+            case .horizontal:
+                contentOffset.x = CGFloat(index) * scrollView.bounds.size.width
+                if contentOffset.x == scrollView.contentOffset.x {
+                    hasChanged = false
+                }
+            case .vertical:
+                contentOffset.y = CGFloat(index) * scrollView.bounds.size.height
+                if contentOffset.y == scrollView.contentOffset.y {
+                    hasChanged = false
+                }
+            }
+            
+            // 当contentOffset没有变化是不会调用didScroll或者didEndAnimation
+            if hasChanged == false {
+                if majorPage == nil {
+                    layoutPageContainer()
+                    didEndTransition(fromDragging: false)
+                }
+                prefetchPages(currentScrollDirection: .none, pagePercent: CGFloat(index))
+                if let completion = completion {
+                    completion(true)
+                }
+                return
+            }
+            
+            if animated == false {
+                setContentOffsetStatus = .isSetting(contentOffset)
+            }
+            isContentOffsetSetting = true
+            scrollView.setContentOffset(contentOffset, animated: animated)
+            isContentOffsetSetting = false
+            
+            if animated == false {
+                didEndTransition(fromDragging: false)
+                prefetchPages(currentScrollDirection: .none, pagePercent: CGFloat(index))
+                if let completion = completion {
+                    completion(true)
+                }
+            } else {
+                animationCompletionBlock = {[weak self] finshed in
+                    if let self = self  {
+                        if self.scrollView.contentOffset == contentOffset {
+                            self.didEndTransition(fromDragging: false)
+                            if let completion = completion {
+                                completion(finshed)
+                            }
+                        } else {
+                            if let completion = completion {
+                                completion(false)
+                            }
                         }
                     }
                 }
             }
+        } else {
+            layoutPageContainer()
+            if minorPage == nil {
+                didEndTransition(fromDragging: false)
+            }
+            
+            prefetchPages(currentScrollDirection: .none, pagePercent: pagePercent)
+            if let completion = completion {
+                completion(true)
+            }
+            return
         }
+    }
+    
+    public func scroll(to index: Int, animated: Bool = false, completion: ((_ finshed: Bool) -> Void)? = nil) {
+        guard index >= 0, index < numbersOfViewControllers else {
+            print("scroll to index不合规范")
+            if let completion = completion {
+                completion(false)
+            }
+            return
+        }
+        privateScroll(to: index, animated: animated, completion: completion)
+
     }
     
     // MARK: UIScrollViewDelegate
@@ -668,7 +958,7 @@ public class LDPageContainerViewController: UIViewController, UIScrollViewDelega
     /// - Parameters:
     ///   - fromDragging: 是否从scrollView的回调函数里调用的，fromDragging = true，并不代表手势触摸过程已经结束，为false的时候表示是代码设置contentOffset的调用
     private func didEndTransition(fromDragging: Bool = false) {
-        if isTransitioning == false, isDisppeared == false, isContentSetting == false { // 为什么要加isDisppeared == false， 因为scroll(to, animated, completion)调用的时候状态可能是isDisppeared
+        if isTransitioning == false, isDisppeared == false, isContentOffsetSetting == false { // 为什么要加isDisppeared == false， 因为scroll(to, animated, completion)调用的时候状态可能是isDisppeared
             guard let only = majorPage, minorPage == nil else {
                 fatalError("不对 majorPage = \(String(describing:majorPage)), monirPage = \(String(describing: minorPage))")
             }
